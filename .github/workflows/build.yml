@@ -56,7 +56,7 @@ jobs:
       # checkout fetches submodules shallow and without tags; the image tag is the submodule's tag
       - name: Fetch submodule tags
         run: git submodule foreach --quiet 'git fetch -q --depth=1 origin "+refs/tags/*:refs/tags/*"'
-      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-qemu-action@v4
         with:
           platforms: riscv64
       - uses: docker/setup-buildx-action@v3
