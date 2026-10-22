@@ -28,20 +28,23 @@ SRC_csi-resizer                := external-resizer
 SRC_csi-snapshotter            := external-snapshotter
 SRC_csi-node-driver-registrar  := node-driver-registrar
 SRC_livenessprobe              := livenessprobe
+SRC_longhorn-share-manager     := longhorn-share-manager
 
 # extra build contexts per image
 CTX_longhorn-engine            := deps=build/dep-versions im=build/longhorn-instance-manager
 CTX_longhorn-instance-manager  := deps=build/dep-versions
 DEPS_longhorn-engine           := dep-versions longhorn-instance-manager
 DEPS_longhorn-instance-manager := dep-versions
+CTX_longhorn-share-manager     := deps=build/dep-versions
+DEPS_longhorn-share-manager    := dep-versions
 
-IMAGES := longhorn-manager longhorn-engine longhorn-instance-manager \
+IMAGES := longhorn-manager longhorn-engine longhorn-instance-manager longhorn-share-manager \
           csi-attacher csi-provisioner csi-resizer csi-snapshotter csi-node-driver-registrar livenessprobe
 
 # Not built for riscv64 yet: copied as-is (upstream's manifest list, same digests) so that the whole
 # release is in REGISTRY. Longhorn's chart can only point every image at one registry
 # (privateRegistry.registryUrl); a per-image registry is ignored.
-MIRRORS := longhorn-ui longhorn-share-manager backing-image-manager support-bundle-kit longhorn-cli
+MIRRORS := longhorn-ui backing-image-manager support-bundle-kit longhorn-cli
 # their tags: images.txt is the release's deploy/longhorn-images.txt (written by scripts/sync-upstream)
 mtag = $(or $(shell awk -F: '$$1 ~ /\/$(1)$$/ {print $$2}' images.txt),$(error $(1) not in images.txt))
 

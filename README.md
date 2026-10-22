@@ -29,13 +29,13 @@ flowchart LR
 | longhorn-manager | longhorn/longhorn-manager | pure Go; also the CSI plugin / driver-deployer image |
 | longhorn-engine | longhorn/longhorn-engine | Go + cgo (libqcow); tgt + liblonghorn |
 | longhorn-instance-manager | longhorn/longhorn-instance-manager | **v1 data engine only**: no SPDK (v2) |
+| longhorn-share-manager | longhorn/longhorn-share-manager | RWX volumes (nfs-ganesha); also pre-pulled by every longhorn-manager pod, so needed on every node |
 | csi-attacher, csi-provisioner, csi-resizer, csi-snapshotter, csi-node-driver-registrar, livenessprobe | kubernetes-csi/* | Longhorn re-publishes these upstream sidecars as `longhornio/*` |
 
-Not built for riscv64 yet, **mirrored** instead: `longhorn-ui`, `longhorn-share-manager` (RWX volumes;
-needs nfs-ganesha), `backing-image-manager`, `support-bundle-kit` and `longhorn-cli` are copied
+Not built for riscv64 yet, **mirrored** instead: `longhorn-ui`, `backing-image-manager`, `support-bundle-kit` and `longhorn-cli` are copied
 unchanged (upstream's manifest list, same digests) so the whole release is in this registry: Longhorn's
 chart can only point all images at one registry (`privateRegistry.registryUrl`; a per-image
-`registry` is ignored). Keep RWX volumes, backing images and the UI off riscv64 nodes.
+`registry` is ignored). Keep backing images and the UI off riscv64 nodes.
 Their submodules are here for later.
 
 ## How the builds differ from upstream

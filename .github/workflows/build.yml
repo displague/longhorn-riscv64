@@ -38,6 +38,7 @@ jobs:
           - longhorn-manager
           - longhorn-engine
           - longhorn-instance-manager
+          - longhorn-share-manager
           - csi-attacher
           - csi-provisioner
           - csi-resizer
@@ -101,7 +102,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        image: [longhorn-ui, longhorn-share-manager, backing-image-manager, support-bundle-kit, longhorn-cli]
+        image: [longhorn-ui, backing-image-manager, support-bundle-kit, longhorn-cli]
     env:
       REGISTRY: ghcr.io/${{ github.repository }}
     steps:
