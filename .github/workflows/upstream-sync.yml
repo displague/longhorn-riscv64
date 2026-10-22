@@ -28,7 +28,7 @@ jobs:
         run: |
           scripts/sync-upstream ${{ inputs.version }} | tee sync.log
           echo "version=$(head -1 sync.log | awk '{print $2}')" >> "$GITHUB_OUTPUT"
-      - uses: peter-evans/create-pull-request@v7
+      - uses: peter-evans/create-pull-request@v8
         id: cpr
         with:
           branch: upstream-sync/${{ steps.sync.outputs.version }}
