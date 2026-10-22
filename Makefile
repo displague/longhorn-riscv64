@@ -38,15 +38,24 @@ DEPS_longhorn-instance-manager := dep-versions
 IMAGES := longhorn-manager longhorn-engine longhorn-instance-manager \
           csi-attacher csi-provisioner csi-resizer csi-snapshotter csi-node-driver-registrar livenessprobe
 
+# Not built for riscv64 yet: copied as-is (upstream's manifest list, same digests) so that the whole
+# release is in REGISTRY. Longhorn's chart can only point every image at one registry
+# (privateRegistry.registryUrl); a per-image registry is ignored.
+MIRRORS := longhorn-ui longhorn-share-manager backing-image-manager support-bundle-kit longhorn-cli
+# their tags: images.txt is the release's deploy/longhorn-images.txt (written by scripts/sync-upstream)
+mtag = $(or $(shell awk -F: '$$1 ~ /\/$(1)$$/ {print $$2}' images.txt),$(error $(1) not in images.txt))
+
 # the image's tag = the submodule's exact upstream tag; a submodule off a tag is an error
 tag = $(or $(shell git -C upstream/$(SRC_$(1)) describe --tags --exact-match 2>/dev/null),$(error upstream/$(SRC_$(1)) is not on a tag))
 
-.PHONY: all release tags $(addprefix prepare-,$(IMAGES)) $(addprefix build-,$(IMAGES)) $(addprefix push-,$(IMAGES)) $(addprefix manifest-,$(IMAGES))
+.PHONY: all release mirrors tags $(addprefix mirror-,$(MIRRORS)) $(addprefix prepare-,$(IMAGES)) $(addprefix build-,$(IMAGES)) $(addprefix push-,$(IMAGES)) $(addprefix manifest-,$(IMAGES))
 all: $(addprefix build-,$(IMAGES))
-release: $(addprefix manifest-,$(IMAGES))
+release: $(addprefix manifest-,$(IMAGES)) mirrors
+mirrors: $(addprefix mirror-,$(MIRRORS))
 
 tags:
 	@$(foreach i,$(IMAGES),printf '%-28s %-24s %s\n' $(i) $(call tag,$(i)) upstream/$(SRC_$(i));)
+	@$(foreach i,$(MIRRORS),printf '%-28s %-24s %s\n' $(i) $(call mtag,$(i)) "mirror of $(UPSTREAM_REGISTRY)/$(i)";)
 
 $(addprefix prepare-,$(IMAGES)): prepare-%:
 	@scripts/prepare $(SRC_$*) $(foreach d,$(DEPS_$*),&& scripts/prepare $(d))
@@ -64,3 +73,6 @@ $(addprefix push-,$(IMAGES)): push-%: prepare-%
 $(addprefix manifest-,$(IMAGES)): manifest-%: push-%
 	scripts/merge-manifest $(UPSTREAM_REGISTRY)/$*:$(call tag,$*) $(REGISTRY)/$*:$(call tag,$*)-riscv64 \
 	  $(REGISTRY)/$*:$(call tag,$*)
+
+$(addprefix mirror-,$(MIRRORS)): mirror-%:
+	docker buildx imagetools create --tag $(REGISTRY)/$*:$(call mtag,$*) $(UPSTREAM_REGISTRY)/$*:$(call mtag,$*)

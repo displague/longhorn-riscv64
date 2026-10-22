@@ -40,13 +40,13 @@ jobs:
       - name: Commit to main
         id: commit
         run: |
-          if git diff --quiet -- upstream; then
+          if git diff --quiet -- upstream images.txt; then
             echo "changed=false" >> "$GITHUB_OUTPUT"; echo "already at $(head -1 sync.log)"; exit 0
           fi
           v=$(head -1 sync.log | awk '{print $2}')
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git commit -q -m "upstream: Longhorn $v (submodules at its image tags)" -m "$(tail -n +2 sync.log)" -- upstream
+          git commit -q -m "upstream: Longhorn $v (submodules at its image tags)" -m "$(tail -n +2 sync.log)" -- upstream images.txt
           git push origin HEAD:main
           echo "changed=true" >> "$GITHUB_OUTPUT"
           echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"

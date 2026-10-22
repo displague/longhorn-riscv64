@@ -31,9 +31,12 @@ flowchart LR
 | longhorn-instance-manager | longhorn/longhorn-instance-manager | **v1 data engine only**: no SPDK (v2) |
 | csi-attacher, csi-provisioner, csi-resizer, csi-snapshotter, csi-node-driver-registrar, livenessprobe | kubernetes-csi/* | Longhorn re-publishes these upstream sidecars as `longhornio/*` |
 
-Not built yet: `longhorn-share-manager` (RWX volumes; needs nfs-ganesha), `backing-image-manager`
-(backing images), `support-bundle-kit`, `longhorn-ui` and `longhorn-cli`. Their submodules are here
-for later; until then keep RWX volumes, backing images and the UI off riscv64 nodes.
+Not built for riscv64 yet, **mirrored** instead: `longhorn-ui`, `longhorn-share-manager` (RWX volumes;
+needs nfs-ganesha), `backing-image-manager`, `support-bundle-kit` and `longhorn-cli` are copied
+unchanged (upstream's manifest list, same digests) so the whole release is in this registry: Longhorn's
+chart can only point all images at one registry (`privateRegistry.registryUrl`; a per-image
+`registry` is ignored). Keep RWX volumes, backing images and the UI off riscv64 nodes.
+Their submodules are here for later.
 
 ## How the builds differ from upstream
 
@@ -43,7 +46,8 @@ engine and instance-manager, the root `Dockerfile` that builds the binaries) at 
 - **Go is cross-compiled** on the build host (`FROM --platform=$BUILDPLATFORM`, `GOARCH=riscv64`),
   using each component's own `scripts/build`. The engine and instance-manager link libqcow through
   cgo statically, so a riscv64 libqcow is built with Debian's cross toolchain first. No emulation.
-- **Only the riscv64 runtime layers run under QEMU**: package installs, plus tgt + liblonghorn
+- **At build time, only the riscv64 image's own steps run under QEMU** (nothing is emulated at run
+  time: riscv64 nodes run these natively, the others run upstream's native images): package installs, plus tgt + liblonghorn
   (small C builds, via the same `dep-versions` scripts upstream uses).
 - **Runtime base: openSUSE Tumbleweed.** SLE BCI (upstream's base) has no riscv64; Tumbleweed does,
   with the same zypper package names. `/tini` is openSUSE's `catatonit` (tini ships no riscv64).
@@ -109,21 +113,28 @@ without credentials.
 
 ## Using it
 
-Point the chart's image repositories here (same tags as upstream):
+Point the chart at this registry; the image names are upstream's with `longhornio/` replaced
+(same tags):
 
 ```yaml
+privateRegistry:
+  registryUrl: ghcr.io
 image:
   longhorn:
-    manager: { repository: ghcr.io/displague/longhorn-riscv64/longhorn-manager }
-    engine: { repository: ghcr.io/displague/longhorn-riscv64/longhorn-engine }
-    instanceManager: { repository: ghcr.io/displague/longhorn-riscv64/longhorn-instance-manager }
+    manager: { repository: displague/longhorn-riscv64/longhorn-manager }
+    engine: { repository: displague/longhorn-riscv64/longhorn-engine }
+    ui: { repository: displague/longhorn-riscv64/longhorn-ui }
+    instanceManager: { repository: displague/longhorn-riscv64/longhorn-instance-manager }
+    shareManager: { repository: displague/longhorn-riscv64/longhorn-share-manager }
+    backingImageManager: { repository: displague/longhorn-riscv64/backing-image-manager }
+    supportBundleKit: { repository: displague/longhorn-riscv64/support-bundle-kit }
   csi:
-    attacher: { repository: ghcr.io/displague/longhorn-riscv64/csi-attacher }
-    provisioner: { repository: ghcr.io/displague/longhorn-riscv64/csi-provisioner }
-    resizer: { repository: ghcr.io/displague/longhorn-riscv64/csi-resizer }
-    snapshotter: { repository: ghcr.io/displague/longhorn-riscv64/csi-snapshotter }
-    nodeDriverRegistrar: { repository: ghcr.io/displague/longhorn-riscv64/csi-node-driver-registrar }
-    livenessProbe: { repository: ghcr.io/displague/longhorn-riscv64/livenessprobe }
+    attacher: { repository: displague/longhorn-riscv64/csi-attacher }
+    provisioner: { repository: displague/longhorn-riscv64/csi-provisioner }
+    nodeDriverRegistrar: { repository: displague/longhorn-riscv64/csi-node-driver-registrar }
+    resizer: { repository: displague/longhorn-riscv64/csi-resizer }
+    snapshotter: { repository: displague/longhorn-riscv64/csi-snapshotter }
+    livenessProbe: { repository: displague/longhorn-riscv64/livenessprobe }
 ```
 
 If the riscv64 nodes carry a taint (e.g. `kubernetes.io/arch=riscv64:NoSchedule`), add it to

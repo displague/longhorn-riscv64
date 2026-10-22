@@ -15,6 +15,7 @@ echo "Longhorn $ver (current $cur)"
 [ "$ver" = "$cur" ] && { echo "up to date"; exit 0; }
 
 images=$(curl -fsSL "https://raw.githubusercontent.com/longhorn/longhorn/$ver/deploy/longhorn-images.txt")
+echo "$images" > images.txt   # the Makefile reads the mirrored images' tags from here
 
 # image -> submodule; images we don't build are skipped
 declare -A src=(
