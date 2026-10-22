@@ -1,0 +1,44 @@
+name: upstream-sync
+
+# Daily: move the submodules to the newest Longhorn release in the current line (patch releases),
+# and open a pull request; build.yml builds it there. A new minor line is a manual run with
+# `version` (e.g. v1.13.0), since it may need Dockerfile changes.
+on:
+  schedule:
+    - cron: "17 6 * * *"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Longhorn release to sync to (default - newest patch release of the current line)
+        required: false
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+      - name: Sync submodules to the release's image tags
+        id: sync
+        run: |
+          scripts/sync-upstream ${{ inputs.version }} | tee sync.log
+          echo "version=$(head -1 sync.log | awk '{print $2}')" >> "$GITHUB_OUTPUT"
+      - uses: peter-evans/create-pull-request@v7
+        id: cpr
+        with:
+          branch: upstream-sync/${{ steps.sync.outputs.version }}
+          title: "Longhorn ${{ steps.sync.outputs.version }}"
+          commit-message: "upstream: Longhorn ${{ steps.sync.outputs.version }} (submodules at its image tags)"
+          body-path: sync.log
+          add-paths: upstream
+      # a PR opened with GITHUB_TOKEN doesn't trigger pull_request workflows; a dispatch does
+      - name: Build the PR branch
+        if: steps.cpr.outputs.pull-request-operation == 'created' || steps.cpr.outputs.pull-request-operation == 'updated'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run build.yml --ref upstream-sync/${{ steps.sync.outputs.version }}

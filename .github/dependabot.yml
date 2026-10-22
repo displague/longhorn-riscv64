@@ -1,0 +1,18 @@
+# Dependabot keeps the build tooling current: GitHub Actions and the base images in docker/*.
+# The upstream submodules are NOT left to Dependabot's gitsubmodule updater: it follows branch heads,
+# and every image must be built from the exact tag Longhorn released (longhorn-images.txt), or the
+# riscv64 image wouldn't match the amd64/arm64 ones it is merged with. upstream-sync.yml does that.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+  - package-ecosystem: docker
+    directories:
+      - /docker/*
+    schedule:
+      interval: weekly
+    groups:
+      base-images:
+        patterns: ["*"]

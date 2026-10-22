@@ -1,0 +1,2 @@
+# Patches applied to a clean clone of upstream/<submodule> by scripts/prepare.
+# Layout: patches/<submodule>/NNNN-description.patch (git format-patch output). None needed so far.

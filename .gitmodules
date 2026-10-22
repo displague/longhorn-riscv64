@@ -1,0 +1,41 @@
+[submodule "upstream/longhorn-manager"]
+	path = upstream/longhorn-manager
+	url = https://github.com/longhorn/longhorn-manager
+	branch = v1.12.x
+[submodule "upstream/longhorn-engine"]
+	path = upstream/longhorn-engine
+	url = https://github.com/longhorn/longhorn-engine
+	branch = v1.12.x
+[submodule "upstream/longhorn-instance-manager"]
+	path = upstream/longhorn-instance-manager
+	url = https://github.com/longhorn/longhorn-instance-manager
+	branch = v1.12.x
+[submodule "upstream/longhorn-share-manager"]
+	path = upstream/longhorn-share-manager
+	url = https://github.com/longhorn/longhorn-share-manager
+	branch = v1.12.x
+[submodule "upstream/backing-image-manager"]
+	path = upstream/backing-image-manager
+	url = https://github.com/longhorn/backing-image-manager
+	branch = v1.12.x
+[submodule "upstream/dep-versions"]
+	path = upstream/dep-versions
+	url = https://github.com/longhorn/dep-versions
+[submodule "upstream/external-attacher"]
+	path = upstream/external-attacher
+	url = https://github.com/kubernetes-csi/external-attacher
+[submodule "upstream/external-provisioner"]
+	path = upstream/external-provisioner
+	url = https://github.com/kubernetes-csi/external-provisioner
+[submodule "upstream/external-resizer"]
+	path = upstream/external-resizer
+	url = https://github.com/kubernetes-csi/external-resizer
+[submodule "upstream/external-snapshotter"]
+	path = upstream/external-snapshotter
+	url = https://github.com/kubernetes-csi/external-snapshotter
+[submodule "upstream/node-driver-registrar"]
+	path = upstream/node-driver-registrar
+	url = https://github.com/kubernetes-csi/node-driver-registrar
+[submodule "upstream/livenessprobe"]
+	path = upstream/livenessprobe
+	url = https://github.com/kubernetes-csi/livenessprobe

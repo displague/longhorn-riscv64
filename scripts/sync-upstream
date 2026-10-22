@@ -1,0 +1,38 @@
+#!/bin/bash
+# sync-upstream [LONGHORN_VERSION]
+# Point every submodule at the tag a Longhorn release ships, as listed in that release's
+# deploy/longhorn-images.txt (e.g. longhornio/csi-attacher:v4.12.0 -> upstream/external-attacher @ v4.12.0).
+# Without an argument: the newest release in LINE (default: the current line, from longhorn-manager's tag).
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+cur=$(git -C upstream/longhorn-manager describe --tags --exact-match)
+LINE=${LINE:-$(sed -E 's/^(v[0-9]+\.[0-9]+)\..*/\1/' <<<"$cur")}
+ver=${1:-$(git ls-remote --tags --refs https://github.com/longhorn/longhorn "refs/tags/$LINE.*" |
+  sed 's|.*refs/tags/||' | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -1)}
+echo "Longhorn $ver (current $cur)"
+
+images=$(curl -fsSL "https://raw.githubusercontent.com/longhorn/longhorn/$ver/deploy/longhorn-images.txt")
+
+# image -> submodule; images we don't build are skipped
+declare -A src=(
+  [longhorn-manager]=longhorn-manager [longhorn-engine]=longhorn-engine
+  [longhorn-instance-manager]=longhorn-instance-manager
+  [longhorn-share-manager]=longhorn-share-manager [backing-image-manager]=backing-image-manager
+  [csi-attacher]=external-attacher [csi-provisioner]=external-provisioner [csi-resizer]=external-resizer
+  [csi-snapshotter]=external-snapshotter [csi-node-driver-registrar]=node-driver-registrar
+  [livenessprobe]=livenessprobe
+)
+bump() {  # submodule tag
+  local d=upstream/$1
+  git -C "$d" fetch -q --depth 1 origin "refs/tags/$2:refs/tags/$2"
+  git -C "$d" -c advice.detachedHead=false checkout -q "$2"
+  echo "  $1 -> $2"
+}
+while IFS= read -r ref; do
+  img=${ref#*/}; name=${img%%:*}; tag=${img##*:}
+  [ -n "${src[$name]:-}" ] && bump "${src[$name]}" "$tag"
+done <<<"$images"
+# the C/library pins (libqcow, liblonghorn, tgt) are tagged with the Longhorn release
+bump dep-versions "$ver"
+git status --short upstream

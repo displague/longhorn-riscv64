@@ -1,0 +1,30 @@
+#!/bin/bash
+# merge-manifest UPSTREAM_REF RISCV64_REF DEST_REF
+# DEST_REF becomes a manifest list of upstream's linux/amd64 + linux/arm64 images (referenced by
+# digest, never rebuilt) and our linux/riscv64 image. Refuses if upstream already ships riscv64.
+set -euo pipefail
+up=$1 ours=$2 dest=$3
+
+platforms() { docker buildx imagetools inspect --raw "$1" |
+  python3 -I -c 'import sys,json
+d=json.load(sys.stdin)
+for m in d.get("manifests",[]):
+    p=m.get("platform",{})
+    if p.get("os")=="linux": print(p["architecture"]+(("/"+p["variant"]) if p.get("variant") else ""), m["digest"])'; }
+
+upm=$(platforms "$up")
+grep -q '^riscv64 ' <<<"$upm" && { echo "$up already has riscv64 - use upstream directly"; exit 1; }
+ourm=$(platforms "$ours")
+grep -q '^riscv64 ' <<<"$ourm" || { echo "$ours has no riscv64 image"; exit 1; }
+
+repo_up=${up%:*} repo_ours=${ours%:*}
+srcs=()
+while read -r arch digest; do
+  case $arch in amd64|arm64) srcs+=("$repo_up@$digest") ;; esac
+done <<<"$upm"
+[ ${#srcs[@]} -eq 2 ] || { echo "expected amd64+arm64 in $up, got: $upm"; exit 1; }
+srcs+=("$repo_ours@$(awk '$1=="riscv64"{print $2}' <<<"$ourm")")
+
+echo "$dest <= ${srcs[*]}"
+docker buildx imagetools create --tag "$dest" "${srcs[@]}"
+docker buildx imagetools inspect "$dest" | grep -E 'Platform:' | sort -u

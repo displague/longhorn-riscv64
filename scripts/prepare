@@ -1,0 +1,40 @@
+#!/bin/bash
+# prepare SUBMODULE -> build/SUBMODULE: a shallow clone of upstream/SUBMODULE at its pinned commit,
+# with patches/SUBMODULE/*.patch applied.
+#
+# A clone, not the submodule itself: the submodule's .git is a pointer file that means nothing
+# inside a docker build context, and upstream's scripts/version needs real git (tag, commit).
+# Patched files are marked assume-unchanged so scripts/version still reports the clean tag
+# rather than "<commit>-dirty"; the patch list is recorded in build/SUBMODULE.patches.
+set -euo pipefail
+cd "$(dirname "$0")/.."
+src=$1
+up=upstream/$src
+dst=build/$src
+[ -e "$up/.git" ] || { echo "no submodule $up (git submodule update --init)"; exit 1; }
+
+commit=$(git -C "$up" rev-parse HEAD)
+tag=$(git -C "$up" describe --tags --exact-match 2>/dev/null || true)
+
+rm -rf "$dst"
+mkdir -p build
+if [ -n "$tag" ]; then
+  git -c advice.detachedHead=false clone -q --depth 1 --branch "$tag" "file://$PWD/$up" "$dst"
+else
+  git -c advice.detachedHead=false clone -q "file://$PWD/$up" "$dst"
+  git -C "$dst" checkout -q "$commit"
+fi
+[ "$(git -C "$dst" rev-parse HEAD)" = "$commit" ] || { echo "$dst is not at $commit"; exit 1; }
+
+: > "$dst.patches"
+for p in patches/"$src"/*.patch; do
+  [ -e "$p" ] || continue
+  files=$(git -C "$dst" apply --numstat "$PWD/$p" | cut -f3)
+  git -C "$dst" apply "$PWD/$p"
+  # new files are untracked, which scripts/version ignores (--untracked-files=no)
+  for f in $files; do
+    git -C "$dst" ls-files --error-unmatch "$f" >/dev/null 2>&1 && git -C "$dst" update-index --assume-unchanged "$f"
+  done
+  echo "$p" >> "$dst.patches"
+done
+echo "$dst ${tag:-$commit}$( [ -s "$dst.patches" ] && echo " + $(wc -l < "$dst.patches") patch(es)")"
