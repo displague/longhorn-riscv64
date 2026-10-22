@@ -57,8 +57,9 @@ $(addprefix build-,$(IMAGES)): build-%: prepare-%
 	  --output type=oci,dest=out/$*.tar build/$(SRC_$*)
 
 $(addprefix push-,$(IMAGES)): push-%: prepare-%
+	@mkdir -p out
 	$(BUILDX) -f docker/$*/Dockerfile $(foreach c,$(CTX_$*),--build-context $(c)) $(CACHE) \
-	  --tag $(REGISTRY)/$*:$(call tag,$*)-riscv64 --push build/$(SRC_$*)
+	  --tag $(REGISTRY)/$*:$(call tag,$*)-riscv64 --push --metadata-file out/$*.push.json build/$(SRC_$*)
 
 $(addprefix manifest-,$(IMAGES)): manifest-%: push-%
 	scripts/merge-manifest $(UPSTREAM_REGISTRY)/$*:$(call tag,$*) $(REGISTRY)/$*:$(call tag,$*)-riscv64 \

@@ -90,6 +90,20 @@ flowchart LR
   and every image must come from the exact tag Longhorn released, or it wouldn't match the
   amd64/arm64 images it is merged with.
 
+## Verifying an image
+
+Every published digest (the riscv64 image and the merged multi-arch tag) carries a signed SLSA build
+provenance attestation from `build.yml` (GitHub artifact attestations, keyless via Sigstore), naming
+this repo, the commit and the workflow run that built it:
+
+```sh
+gh attestation verify oci://ghcr.io/displague/longhorn-riscv64/longhorn-manager:v1.12.1 --owner displague
+```
+
+The commit pins each submodule, so it pins the upstream source. The amd64/arm64 entries in a merged
+tag are upstream's own images, referenced by digest: compare them with
+`docker buildx imagetools inspect docker.io/longhornio/<image>:<tag>`.
+
 New GHCR packages start private: make each one public once (package settings) so nodes can pull
 without credentials.
 

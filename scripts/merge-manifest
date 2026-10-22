@@ -28,3 +28,6 @@ srcs+=("$repo_ours@$(awk '$1=="riscv64"{print $2}' <<<"$ourm")")
 echo "$dest <= ${srcs[*]}"
 docker buildx imagetools create --tag "$dest" "${srcs[@]}"
 docker buildx imagetools inspect "$dest" | grep -E 'Platform:' | sort -u
+# digest of the merged list, for attestation (CI reads it from here)
+mkdir -p out
+docker buildx imagetools inspect "$dest" --format '{{json .Manifest.Digest}}' | tr -d '"' > "out/$(basename "${dest%:*}").merged.digest"

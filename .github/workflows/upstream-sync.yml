@@ -17,6 +17,8 @@ on:
 permissions:
   contents: write
   packages: write
+  id-token: write      # passed to build.yml for the attestations
+  attestations: write
 
 concurrency:
   group: upstream-sync
