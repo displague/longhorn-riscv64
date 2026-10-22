@@ -41,25 +41,25 @@ IMAGES := longhorn-manager longhorn-engine longhorn-instance-manager \
 # the image's tag = the submodule's exact upstream tag; a submodule off a tag is an error
 tag = $(or $(shell git -C upstream/$(SRC_$(1)) describe --tags --exact-match 2>/dev/null),$(error upstream/$(SRC_$(1)) is not on a tag))
 
-.PHONY: all release tags $(addprefix build-,$(IMAGES)) $(addprefix push-,$(IMAGES)) $(addprefix manifest-,$(IMAGES))
+.PHONY: all release tags $(addprefix prepare-,$(IMAGES)) $(addprefix build-,$(IMAGES)) $(addprefix push-,$(IMAGES)) $(addprefix manifest-,$(IMAGES))
 all: $(addprefix build-,$(IMAGES))
 release: $(addprefix manifest-,$(IMAGES))
 
 tags:
 	@$(foreach i,$(IMAGES),printf '%-28s %-24s %s\n' $(i) $(call tag,$(i)) upstream/$(SRC_$(i));)
 
-prepare-%:
+$(addprefix prepare-,$(IMAGES)): prepare-%:
 	@scripts/prepare $(SRC_$*) $(foreach d,$(DEPS_$*),&& scripts/prepare $(d))
 
-build-%: prepare-%
+$(addprefix build-,$(IMAGES)): build-%: prepare-%
 	@mkdir -p out
 	$(BUILDX) -f docker/$*/Dockerfile $(foreach c,$(CTX_$*),--build-context $(c)) $(CACHE) \
 	  --output type=oci,dest=out/$*.tar build/$(SRC_$*)
 
-push-%: prepare-%
+$(addprefix push-,$(IMAGES)): push-%: prepare-%
 	$(BUILDX) -f docker/$*/Dockerfile $(foreach c,$(CTX_$*),--build-context $(c)) $(CACHE) \
 	  --tag $(REGISTRY)/$*:$(call tag,$*)-riscv64 --push build/$(SRC_$*)
 
-manifest-%: push-%
+$(addprefix manifest-,$(IMAGES)): manifest-%: push-%
 	scripts/merge-manifest $(UPSTREAM_REGISTRY)/$*:$(call tag,$*) $(REGISTRY)/$*:$(call tag,$*)-riscv64 \
 	  $(REGISTRY)/$*:$(call tag,$*)
