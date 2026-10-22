@@ -15,7 +15,7 @@ COPY . /app
 RUN ARCHS=${TARGETARCH} ./scripts/build
 
 FROM registry.opensuse.org/opensuse/tumbleweed:latest AS lib_builder
-RUN zypper -n ref && zypper -n install autoconf bison curl git tar gzip jq libcurl-devel libjson-c-devel \
+RUN zypper -n ref && zypper -n install autoconf bison curl git tar gzip jq libcurl-devel json-c-devel \
       libacl-devel lsb-release libdbus-1-3 liburcu-devel libblkid-devel e2fsprogs e2fsprogs-devel \
       xfsprogs xfsprogs-devel dbus-1-devel flex Mesa-libGL-devel nfsidmap-devel graphviz-devel doxygen \
       libnsl-devel cmake make gcc14 gcc14-c++ && \
@@ -25,7 +25,7 @@ RUN bash /usr/src/dep-versions/scripts/build-nfs-ganesha.sh "" ""
 
 FROM registry.opensuse.org/opensuse/tumbleweed:latest AS release
 ARG TARGETARCH
-RUN zypper -n ref && zypper -n install rpcbind hostname libblkid1 'libjson-c*' dbus-1-x11 dbus-1 \
+RUN zypper -n ref && zypper -n install rpcbind hostname libblkid1 'libjson-c*' dbus-1 \
       nfsidmap-devel libnsl-devel nfs-kernel-server xfsprogs e2fsprogs nfs-client nfs4-acl-tools && \
     zypper clean -a
 RUN mkdir -p /var/run/dbus && mkdir -p /export
