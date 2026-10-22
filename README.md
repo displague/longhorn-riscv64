@@ -68,13 +68,27 @@ Requires Docker with buildx and QEMU binfmt for riscv64
 
 ## CI
 
-- `build.yml`: every pull request builds all images; pushes to `main` publish them to
-  `ghcr.io/<owner>/longhorn-riscv64/<image>` and merge the manifests.
-- `upstream-sync.yml`: daily, moves the submodules to the newest Longhorn patch release of the current
-  line (from that release's `deploy/longhorn-images.txt`, so every image matches what Longhorn
-  shipped) and opens a pull request. A new minor line is a manual run with `version`.
-- Dependabot keeps the GitHub Actions and the Dockerfiles' base images current. It doesn't update
-  the submodules: its gitsubmodule updater follows branch heads, not release tags.
+Upstream tag to published image, with no manual step:
+
+```mermaid
+flowchart LR
+  L["longhorn/longhorn<br/>new release vX.Y.Z"] -->|daily check| S["upstream-sync.yml<br/>submodules -> the release's image tags<br/>(deploy/longhorn-images.txt)"]
+  S -->|commit to main| B["build.yml (called)<br/>9 images, riscv64"]
+  B -->|per image| P["ghcr.io/.../&lt;image&gt;:&lt;tag&gt;-riscv64"]
+  P -->|imagetools merge| M["ghcr.io/.../&lt;image&gt;:&lt;tag&gt;<br/>amd64 + arm64 + riscv64"]
+  M -->|all images out| T["repo tag longhorn-vX.Y.Z"]
+```
+
+- `upstream-sync.yml`: daily. If Longhorn has a newer stable release, it moves the submodules to the
+  exact tags that release ships, commits to `main`, and calls `build.yml` on that commit. It never
+  moves backwards; `workflow_dispatch` with `version` pins a release.
+- `build.yml`: pull requests build every image; runs on `main` also publish and merge them, then tag
+  this repo `longhorn-<version>` once every image is out. A failed image publishes nothing (GitHub's
+  failure email is the alert); older tags stay as they were.
+- Dependabot keeps the GitHub Actions and the Dockerfiles' base images current (its pull requests are
+  built by `build.yml`). It doesn't move the submodules: its gitsubmodule updater follows branch heads,
+  and every image must come from the exact tag Longhorn released, or it wouldn't match the
+  amd64/arm64 images it is merged with.
 
 New GHCR packages start private: make each one public once (package settings) so nodes can pull
 without credentials.

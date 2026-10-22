@@ -1,16 +1,24 @@
 name: build
 
-# Pull requests (including the upstream-sync and Dependabot ones) build every image for riscv64.
-# Pushes to main also publish ghcr.io/<owner>/longhorn-riscv64/<image>:<tag>-riscv64 and merge it
-# with upstream's amd64/arm64 image into ghcr.io/<owner>/longhorn-riscv64/<image>:<tag>.
+# Pull requests (Dependabot's included) build every image for riscv64. Runs on main (pushes, and
+# upstream-sync calling this after it commits a new Longhorn release) also publish
+# ghcr.io/<owner>/longhorn-riscv64/<image>:<tag>-riscv64, merge it with upstream's amd64/arm64 image
+# into ghcr.io/<owner>/longhorn-riscv64/<image>:<tag>, and, once every image is out, tag this repo
+# longhorn-<version>.
 on:
   pull_request:
   push:
     branches: [main]
   workflow_dispatch:
+  workflow_call:
+    inputs:
+      ref:
+        description: commit to build (upstream-sync passes the commit it just pushed)
+        type: string
+        required: false
 
 permissions:
-  contents: read
+  contents: write
   packages: write
 
 concurrency:
@@ -40,6 +48,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: ${{ inputs.ref || github.sha }}
           submodules: true
       # checkout fetches submodules shallow and without tags; the image tag is the submodule's tag
       - name: Fetch submodule tags
@@ -63,3 +72,22 @@ jobs:
       - name: Push riscv64 image and merge with upstream
         if: github.ref == 'refs/heads/main'
         run: make manifest-${{ matrix.image }}
+
+  release-tag:
+    needs: image
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.sha }}
+          submodules: true
+      - name: Tag the repo with the Longhorn release it published
+        run: |
+          git submodule foreach --quiet 'git fetch -q --depth=1 origin "+refs/tags/*:refs/tags/*"'
+          v=longhorn-$(git -C upstream/longhorn-manager describe --tags --exact-match)
+          if git ls-remote --exit-code --tags origin "refs/tags/$v" >/dev/null; then
+            echo "$v already tagged"
+          else
+            git tag "$v" && git push origin "refs/tags/$v" && echo "tagged $v"
+          fi

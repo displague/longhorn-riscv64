@@ -1,44 +1,59 @@
 name: upstream-sync
 
-# Daily: move the submodules to the newest Longhorn release in the current line (patch releases),
-# and open a pull request; build.yml builds it there. A new minor line is a manual run with
-# `version` (e.g. v1.13.0), since it may need Dockerfile changes.
+# Daily, fully automatic: when Longhorn publishes a newer release, move the submodules to the image
+# tags it ships (deploy/longhorn-images.txt), commit that to main, and run build.yml on the commit,
+# which publishes the images and tags this repo longhorn-<version>. A failed build publishes nothing
+# for that image; the cluster only moves when its Helm values do.
+# Manual runs can pin a release: `version` (e.g. v1.12.2).
 on:
   schedule:
     - cron: "17 6 * * *"
   workflow_dispatch:
     inputs:
       version:
-        description: Longhorn release to sync to (default - newest patch release of the current line)
+        description: Longhorn release to sync to (default - the newest stable release)
         required: false
 
 permissions:
   contents: write
-  pull-requests: write
+  packages: write
+
+concurrency:
+  group: upstream-sync
 
 jobs:
   sync:
     runs-on: ubuntu-latest
+    outputs:
+      changed: ${{ steps.commit.outputs.changed }}
+      sha: ${{ steps.commit.outputs.sha }}
     steps:
       - uses: actions/checkout@v4
         with:
           submodules: true
+      - name: Fetch submodule tags
+        run: git submodule foreach --quiet 'git fetch -q --depth=1 origin "+refs/tags/*:refs/tags/*"'
       - name: Sync submodules to the release's image tags
-        id: sync
+        run: scripts/sync-upstream ${{ inputs.version }} | tee sync.log
+      - name: Commit to main
+        id: commit
         run: |
-          scripts/sync-upstream ${{ inputs.version }} | tee sync.log
-          echo "version=$(head -1 sync.log | awk '{print $2}')" >> "$GITHUB_OUTPUT"
-      - uses: peter-evans/create-pull-request@v7
-        id: cpr
-        with:
-          branch: upstream-sync/${{ steps.sync.outputs.version }}
-          title: "Longhorn ${{ steps.sync.outputs.version }}"
-          commit-message: "upstream: Longhorn ${{ steps.sync.outputs.version }} (submodules at its image tags)"
-          body-path: sync.log
-          add-paths: upstream
-      # a PR opened with GITHUB_TOKEN doesn't trigger pull_request workflows; a dispatch does
-      - name: Build the PR branch
-        if: steps.cpr.outputs.pull-request-operation == 'created' || steps.cpr.outputs.pull-request-operation == 'updated'
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: gh workflow run build.yml --ref upstream-sync/${{ steps.sync.outputs.version }}
+          if git diff --quiet -- upstream; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"; echo "already at $(head -1 sync.log)"; exit 0
+          fi
+          v=$(head -1 sync.log | awk '{print $2}')
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -q -m "upstream: Longhorn $v (submodules at its image tags)" -m "$(tail -n +2 sync.log)" -- upstream
+          git push origin HEAD:main
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+  # a push made with GITHUB_TOKEN doesn't trigger build.yml's push event, so call it directly
+  build:
+    needs: sync
+    if: needs.sync.outputs.changed == 'true'
+    uses: ./.github/workflows/build.yml
+    with:
+      ref: ${{ needs.sync.outputs.sha }}
+    secrets: inherit
