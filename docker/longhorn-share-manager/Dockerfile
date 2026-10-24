@@ -3,6 +3,8 @@
 # same tag: Go cross-compiled on the build host via scripts/build's ARCHS; nfs-ganesha built in the
 # target arch (QEMU under buildx) with dep-versions' own script; runtime on openSUSE Tumbleweed, whose
 # main repo has everything upstream pulls from extra OBS repos for SLE (gcc14, cmake, the -devel libs).
+# libopenssl-3-devel by name: ganesha's KMIP plugin needs openssl/store.h, and otherwise libressl-devel
+# can win the openssl-devel dependency.
 # Longhorn also needs this image on every node: longhorn-manager's pod pre-pulls it.
 # Build contexts: . = build/longhorn-share-manager, deps = build/dep-versions
 
@@ -18,7 +20,7 @@ FROM registry.opensuse.org/opensuse/tumbleweed:latest AS lib_builder
 RUN zypper -n ref && zypper -n install autoconf bison curl git tar gzip jq libcurl-devel json-c-devel \
       libacl-devel lsb-release libdbus-1-3 liburcu-devel libblkid-devel e2fsprogs e2fsprogs-devel \
       xfsprogs xfsprogs-devel dbus-1-devel flex Mesa-libGL-devel nfsidmap-devel graphviz-devel doxygen \
-      libnsl-devel cmake make gcc14 gcc14-c++ && \
+      libnsl-devel libopenssl-3-devel cmake make gcc14 gcc14-c++ && \
     zypper clean -a
 COPY --from=deps . /usr/src/dep-versions
 RUN bash /usr/src/dep-versions/scripts/build-nfs-ganesha.sh "" ""
