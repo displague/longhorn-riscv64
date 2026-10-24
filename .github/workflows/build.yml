@@ -4,12 +4,19 @@ name: build
 # upstream-sync calling this after it commits a new Longhorn release) also publish
 # ghcr.io/<owner>/longhorn-riscv64/<image>:<tag>-riscv64, merge it with upstream's amd64/arm64 image
 # into ghcr.io/<owner>/longhorn-riscv64/<image>:<tag>, and, once every image is out, tag this repo
-# longhorn-<version>.
+# longhorn-<version>. Main publishes an image only when its tag isn't in GHCR yet (a new upstream
+# release, or one that failed before); otherwise it just builds, so Dependabot merges and workflow
+# edits don't republish existing tags on a fresh base. A manual run with `force` republishes anyway.
 on:
   pull_request:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      force:
+        description: republish tags that are already in GHCR
+        type: boolean
+        default: false
   workflow_call:
     inputs:
       ref:
@@ -62,19 +69,30 @@ jobs:
       - uses: docker/setup-buildx-action@v4
       - name: Tag
         run: make tags | grep "^${{ matrix.image }} "
-      # publish only from main; PRs and dispatches on other branches just build
+      # publish only from main, and only a tag GHCR doesn't have; everything else just builds
+      - name: Publish?
+        id: gate
+        run: |
+          tag=$(make tags | awk '$1 == "${{ matrix.image }}" {print $2}')
+          if [ "${{ github.ref }}" != refs/heads/main ]; then publish=false
+          elif [ "${{ inputs.force }}" = true ]; then publish=true
+          elif docker buildx imagetools inspect "$REGISTRY/${{ matrix.image }}:$tag" >/dev/null 2>&1; then
+            publish=false; echo "$REGISTRY/${{ matrix.image }}:$tag is already published"
+          else publish=true
+          fi
+          echo "publish=$publish" >> "$GITHUB_OUTPUT"
       - name: Build
-        if: github.ref != 'refs/heads/main'
+        if: steps.gate.outputs.publish != 'true'
         run: make build-${{ matrix.image }}
       - uses: docker/login-action@v4
-        if: github.ref == 'refs/heads/main'
+        if: steps.gate.outputs.publish == 'true'
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Push riscv64 image and merge with upstream
         id: publish
-        if: github.ref == 'refs/heads/main'
+        if: steps.gate.outputs.publish == 'true'
         run: |
           make manifest-${{ matrix.image }}
           echo "riscv64=$(jq -r '."containerimage.digest"' out/${{ matrix.image }}.push.json)" >> "$GITHUB_OUTPUT"
@@ -82,14 +100,14 @@ jobs:
       # Signed SLSA provenance: this repo, commit and run built these digests.
       # Verify: gh attestation verify oci://ghcr.io/<owner>/longhorn-riscv64/<image>:<tag> --owner <owner>
       - name: Attest the riscv64 image
-        if: github.ref == 'refs/heads/main'
+        if: steps.gate.outputs.publish == 'true'
         uses: actions/attest-build-provenance@v3
         with:
           subject-name: ${{ env.REGISTRY }}/${{ matrix.image }}
           subject-digest: ${{ steps.publish.outputs.riscv64 }}
           push-to-registry: true
       - name: Attest the merged multi-arch tag
-        if: github.ref == 'refs/heads/main'
+        if: steps.gate.outputs.publish == 'true'
         uses: actions/attest-build-provenance@v3
         with:
           subject-name: ${{ env.REGISTRY }}/${{ matrix.image }}
