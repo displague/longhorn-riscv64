@@ -55,6 +55,8 @@ COPY --from=cbuild /usr/sbin/tgt-admin /usr/sbin/tgt-setup-lun /usr/sbin/tgtadm 
 COPY --from=gobuild /go/src/github.com/longhorn/longhorn-instance-manager/bin/longhorn-instance-manager /usr/local/bin/
 COPY package/instance-manager package/instance-manager-v2-prestop package/exec-logrotate package/start-spdk-tgt \
      /usr/local/bin/
+# v1.13.0+: the instance-manager pod's liveness probe (bash + nc/pgrep/awk, all in the zypper list above)
+COPY --chmod=0755 package/instance-manager-liveness-probe* /usr/local/bin/
 RUN ldd /usr/local/bin/* /usr/sbin/tgt* 2>/dev/null | grep "not found" && exit 1 || true
 ENTRYPOINT ["/tini", "--"]
 CMD ["longhorn"]
