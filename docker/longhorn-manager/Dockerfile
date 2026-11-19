@@ -4,7 +4,7 @@
 # scripts/build's ARCHS; the runtime is openSUSE Tumbleweed (SLE BCI has no riscv64).
 # Also used for the CSI plugin and driver-deployer, which run this image.
 
-FROM --platform=$BUILDPLATFORM golang:1.26-trixie AS builder
+FROM --platform=$BUILDPLATFORM golang:1.27-trixie AS builder
 ARG TARGETARCH
 ARG LONGHORN_TWO_MINOR_UPGRADE_DISTROS
 ENV LONGHORN_TWO_MINOR_UPGRADE_DISTROS=${LONGHORN_TWO_MINOR_UPGRADE_DISTROS}

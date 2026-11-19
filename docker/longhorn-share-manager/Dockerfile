@@ -8,7 +8,7 @@
 # Longhorn also needs this image on every node: longhorn-manager's pod pre-pulls it.
 # Build contexts: . = build/longhorn-share-manager, deps = build/dep-versions
 
-FROM --platform=$BUILDPLATFORM golang:1.26-trixie AS app_builder
+FROM --platform=$BUILDPLATFORM golang:1.27-trixie AS app_builder
 ARG TARGETARCH
 RUN [ "$TARGETARCH" = riscv64 ] || { echo "riscv64 only (upstream images cover $TARGETARCH)"; exit 1; }
 RUN git config --global --add safe.directory '*'

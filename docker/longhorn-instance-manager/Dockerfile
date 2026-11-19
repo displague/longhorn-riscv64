@@ -9,7 +9,7 @@
 
 ARG GRPC_HEALTH_PROBE_VERSION=v0.4.60
 
-FROM --platform=$BUILDPLATFORM golang:1.26-trixie AS gobuild
+FROM --platform=$BUILDPLATFORM golang:1.27-trixie AS gobuild
 ARG TARGETARCH
 RUN [ "$TARGETARCH" = riscv64 ] || { echo "riscv64 only (upstream images cover $TARGETARCH)"; exit 1; }
 RUN dpkg --add-architecture riscv64 && apt-get update && apt-get install -y --no-install-recommends \
