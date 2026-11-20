@@ -38,6 +38,8 @@ chart can only point all images at one registry (`privateRegistry.registryUrl`; 
 `registry` is ignored). Keep backing images and the UI off riscv64 nodes.
 Their submodules are here for later.
 
+`longhorn-ui` also has a patched tag, `<upstream tag>-nginx<version>` (`make push-patched-longhorn-ui`): upstream's image with /usr/sbin/nginx rebuilt from the nginx.org source (docker/longhorn-ui/Dockerfile), because upstream's SLE BCI base ships nginx 1.21.5 and SUSE's fixed package is not in the public repository. amd64 and arm64 only.
+
 ## How the builds differ from upstream
 
 The Dockerfiles in `docker/<image>/` follow each component's own `package/Dockerfile` (and, for the

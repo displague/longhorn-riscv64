@@ -79,3 +79,14 @@ $(addprefix manifest-,$(IMAGES)): manifest-%: push-%
 
 $(addprefix mirror-,$(MIRRORS)): mirror-%:
 	docker buildx imagetools create --tag $(REGISTRY)/$*:$(call mtag,$*) $(UPSTREAM_REGISTRY)/$*:$(call mtag,$*)
+
+# longhorn-ui with a fixed nginx on top of the mirrored upstream image (docker/longhorn-ui/Dockerfile):
+# <upstream tag>-nginx<version>, amd64 + arm64 (upstream publishes no riscv64 UI).
+UI_PATCH_PLATFORMS ?= linux/amd64,linux/arm64
+UI_NGINX           ?= 1.30.7
+.PHONY: push-patched-longhorn-ui
+push-patched-longhorn-ui:
+	docker buildx build $(if $(BUILDER),--builder $(BUILDER)) --platform $(UI_PATCH_PLATFORMS) --progress plain \
+	  --label org.opencontainers.image.source=$(SOURCE) --build-arg NGINX_VERSION=$(UI_NGINX) \
+	  $(if $(UI_NGINX_SHA256),--build-arg NGINX_SHA256=$(UI_NGINX_SHA256)) \
+	  -f docker/longhorn-ui/Dockerfile --tag $(REGISTRY)/longhorn-ui:$(call mtag,longhorn-ui)-nginx$(UI_NGINX) --push docker/longhorn-ui
